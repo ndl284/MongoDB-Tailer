@@ -4,4 +4,6 @@ A simple Go Lang tool to tail the actions that occur on the Mongo DB server by m
 
 For the oplog to be made available. The server needs to be started as a replcation set using the '--replSet' option
 
-Implimentation is still rudimentary. Logging needs to be implemented. Along with notifications incase of failure.
+TODO:
+	need to carry out testing on last commit, add logger tweaks, and fully flesh out the tailers system/setting vs single tailer
+	need performance testing and performance tweaks.
