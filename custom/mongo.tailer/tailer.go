@@ -2,10 +2,11 @@ package tailer
 
 import (
 	"errors"
-    "gopkg.in/mgo.v2"
-    "gopkg.in/mgo.v2/bson"
-    "os"
-    "time"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+	"os"
+	"strconv"
+	"time"
 )
 
 const OP_LOG = "oplog.rs"
@@ -29,8 +30,8 @@ var maxId = 0
 // it can be added to this struct
 type Reader struct {
 	id int
-	url string						//the database url
-	look_for bson.M					//filter which actions should be retrived. E.g. insert/update/delete
+	url string
+	look_for bson.M
 	mode string
 	stop bool
 	err error
@@ -40,20 +41,20 @@ type Reader struct {
 
 //struct to unmarshall the data coming from the oplog table in mongodb
 type Oplog struct {
-	Timestamp 		bson.MongoTimestamp `bson:"ts"`			// timestamp of when the action occurred
-	limitin 		int					`bson:"t"`			//
-	HistoryID		int64 				`bson:"h"`	
-	MongoVersion	int 				`bson:"v"`			//MongoDB version
-	Operation 		string 				`bson:"op"`			//The operation that is performed.
-	Namespace 		string 				`bson:"ns"`			//Namespace, the table being targeted. format dbname.tablename
-	Document 		interface{}	   		`bson:"o"`			//The payload of the action.
+	Timestamp 		bson.MongoTimestamp `bson:"ts"`
+	limitin 		int `bson:"t"`
+	HistoryID		int64 `bson:"h"`	
+	MongoVersion	int `bson:"v"`
+	Operation 		string `bson:"op"`
+	Namespace 		string `bson:"ns"`
+	Document 		interface{} `bson:"o"`
 }
 
 //The function to configure the url of the MongoDb instance. Stops the Monitor method if it is currenly running.
 // INPUT
-//		** url -  the url of the MongoDb instance
+//	** url -  the url of the MongoDb instance
 // RETURNS
-//		** NONE
+//	** NONE
 //
 func (r *Reader) Url(url string){
 	r.Stop()
@@ -64,9 +65,9 @@ func (r *Reader) Url(url string){
 //	needs to be explicitly where there is a requirement to keep track of all existing threads
 //	TODO: implement setting to enforce afromentioned system if required. 5%
 // INPUT
-//		** NONE
+//	** NONE
 // RETURNS
-//		** id - the id of the current tailer
+//	** id - the id of the current tailer
 //
 func (r *Reader) AssignId() int{
 	if r.id == 0 {
@@ -79,10 +80,10 @@ func (r *Reader) AssignId() int{
 
 //The function to assign a query to find only particular actions on the mongodb instance. Stops Monitor method.
 // INPUT
-//		** query - bson.M object containing a mongoDb query following the structure of the oplog.rs collection in the 
-//					local db
+//	** query - bson.M object containing a mongoDb query following the structure of the oplog.rs collection in the 
+//	local db
 // RETURNS
-//		** NONE
+//	** NONE
 //
 func (r *Reader) AssignQuery(query bson.M){
 	r.Stop()
@@ -92,9 +93,9 @@ func (r *Reader) AssignQuery(query bson.M){
 //The function to change the stop option to false (after the tailer has been stopped) and remove any errors on it. 
 // The Monitor method needs to be called explicitly after this to restart the process.
 // INPUT
-//		** NONE
+//	** NONE
 // RETURNS
-//		** NONE
+//	** NONE
 //
 func (r *Reader) MakeReady(){
 	r.stop = false;
@@ -104,9 +105,9 @@ func (r *Reader) MakeReady(){
 //The function to change the stop option to true. This in turn will trigger a condition in the Monitor method to 
 //	stop the method.
 // INPUT
-//		** NONE
+//	** NONE
 // RETURNS
-//		** NONE
+//	** NONE
 //
 func (r *Reader) Stop(){
 	r.stop = true;
@@ -116,9 +117,9 @@ func (r *Reader) Stop(){
 //The function to remove an object from the map of existing tailers. To be used if keeping track of the tailers.
 // TODO: need to refine the collective system as mentioned in [AssignId.TODO]
 // INPUT
-//		** NONE
+//	** NONE
 // RETURNS
-//		** NONE
+//	** NONE
 // 
 func (r *Reader) Remove(){
 	r.Stop()
@@ -127,9 +128,9 @@ func (r *Reader) Remove(){
 
 //The function returns a boolean value to specify whether there is an error on the current tailer.
 // INPUT
-//		**NONE
+//	**NONE
 // RETURNS
-//		** returns true if the tailer has encountered an error, else returns false.
+//	** returns true if the tailer has encountered an error, else returns false.
 //
 func (r *Reader) HasError() bool {
 	if r.err!=nil {
@@ -140,19 +141,19 @@ func (r *Reader) HasError() bool {
 
 //The function returns an error that is encountered by the tailer, if any.
 // INPUT
-//		**NONE
+//	**NONE
 // RETURNS
-//		** returns the error that the tailer might have encountered, else returns nil
+//	** returns the error that the tailer might have encountered, else returns nil
 func (r *Reader) Error() error {
 	return r.err;
 }
 
 //The function starts the tailer, making it monitor the mongoDB instance that has been configured.
 // INPUT
-//		** updates - Oplog channel that is used to pass the retreived data to functionality that consumes
-//						this feature.
+//	** updates - Oplog channel that is used to pass the retreived data to functionality that consumes
+//	this feature.
 // RETURNS
-//		** NONE
+//	** NONE
 //
 func (r *Reader) Monitor( updates chan Oplog){
 	session, err := mgo.Dial(r.url)
@@ -195,8 +196,10 @@ func (r *Reader) Monitor( updates chan Oplog){
 //	initializing the object either READER_DEBUG_LOG | READER_PROD_LOG. In READER_PROD_LOG
 //	only log messages of type LOG_ERR0R_TYPE will be logged.
 //INPUT
-//		** logtype - type of the log message, information or error (LOG_DEBUG_TYPE|LOG_ERROR_TYPE)
-//		** content - the message that is to be logged
+//	** logtype - type of the log message, information or error (LOG_DEBUG_TYPE|LOG_ERROR_TYPE)
+//	** content - the message that is to be logged
+// RETURNS
+//	** NONE
 func (r* Reader) Logger(logtype string, content string){
 	if logtype == LOG_DEBUG_TYPE && r.mode == READER_PROD_LOG {
 		return
@@ -216,7 +219,9 @@ func (r* Reader) Logger(logtype string, content string){
 		}
 	}
 	
-	log := []byte("["+time.Now().String()+"]"+logtype+content+"\n")
+	timestmp := "["+time.Now().String()+"]"
+	thread := "["+strconv.Itoa(r.id)+"] "
+	log := []byte(timestmp+thread+logtype+content+"\n")
 	file.Write(log)
 	file.Close()
 }
