@@ -58,9 +58,11 @@ func (w *Indexer) Index(updates chan tailer.Oplog){
 
 func main(){
 	updates := make(chan tailer.Oplog, 10)
-	r := &tailer.Reader{Url:"localhost:27017", Look_for:bson.M{"op": "i", "ns":"test.articles"}}
-	w := &Indexer{IndexName:"tdid", DocType:"article"}
+	r := &tailer.Reader{}
+	r.Url("MONGOD DB CONNECTION STRING")
+	r.Query(bson.M{"op": "i", "ns":"test.articles"})
 	
+	w := &Indexer{IndexName:"tdid", DocType:"article"}
 	go r.Monitor(updates)
 	w.Index(updates)
 }

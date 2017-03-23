@@ -37,6 +37,7 @@ type Reader struct {
 	err error
 	logfile string
 	logfilepath string
+	latest bson.MongoTimestamp
 }
 
 //struct to unmarshall the data coming from the oplog table in mongodb
@@ -172,19 +173,14 @@ func (r *Reader) Monitor( updates chan Oplog){
 	collection := session.DB(OP_LOG_COLLECTION).C(OP_LOG)
 	tailable_cursor := collection.Find(r.look_for).Tail(-1)
 
-	for {
+	for !r.stop {
 		success:=tailable_cursor.Next(&obj)
-		if success && !r.stop {
+		if success  {
 			r.Logger(LOG_DEBUG_TYPE, obj.Document.(string))
+			r.latest = obj.Timestamp
 			updates <-obj
 		} else {
-			if(r.stop){
-				r.err = errors.New(TAILER_STOPPED_ERROR)
-			} else {
-				r.err= tailable_cursor.Err()	
-			}
-
-			r.Logger(LOG_ERROR_TYPE, r.err.Error())
+			r.Logger(LOG_ERROR_TYPE, tailable_cursor.Err().Error())
 			panic(r.err)
 			break
 		}
